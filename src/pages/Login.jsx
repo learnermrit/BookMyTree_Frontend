@@ -23,9 +23,13 @@ export default function Login() {
 
       // Assuming your backend returns a JWT token in response.data.token or directly as a string
       const token = response.data.token || response.data;
-      
+      const user = response.data.user || null;
+
       // Store token so Axios interceptors can attach it to future requests
       localStorage.setItem('jwt_token', token);
+      if (user) {
+        localStorage.setItem('user', JSON.stringify(user));
+      }
       window.dispatchEvent(new Event('storage'));
 
       // Redirect user back to home or dashboard after successful login
@@ -40,7 +44,7 @@ export default function Login() {
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-stone-200 p-8 space-y-6">
-        
+
         {/* Header Icon & Title */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-green-100 text-green-700 mb-1">
@@ -76,7 +80,7 @@ export default function Login() {
             </div>
           </div>
 
-         <div>
+          <div>
             <label className="block text-sm font-medium text-stone-700 mb-1">Password</label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-stone-400">

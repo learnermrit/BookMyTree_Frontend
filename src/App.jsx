@@ -4,6 +4,12 @@ import Home from './pages/Home';
 import ApiTest from './pages/ApiTest'; // Import the new test page
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ExploreFarms from './pages/ExploreFarms';
+import TreeBookingPage from './pages/TreeBookingPage';
+import FarmerDashboard from './pages/FarmerDashboard';
+import VirtualFarm from './pages/VirtualFarm';
+import PlantAdoptionPage from './pages/PlantAdoptionPage';
+import MyBookings from './pages/MyBookings';
 
 function App() {
   return (
@@ -21,7 +27,13 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/test-api" element={<ApiTest />} /> {/* Route added */}
+            <Route path="/explore-farms" element={<ExploreFarms />} />
+            <Route path="/tree-booking" element={<TreeBookingPage />} />
+            <Route path="/dashboard" element={<FarmerDashboard />} />
+            <Route path="/virtual-farm" element={<VirtualFarm />} />
+            <Route path="/plant-adoption" element={<PlantAdoptionPage />} />
+            <Route path="/my-bookings" element={<MyBookings />} />
+            <Route path="/test-api" element={<ApiTest />} />
           </Routes>
         </main>
       </div>

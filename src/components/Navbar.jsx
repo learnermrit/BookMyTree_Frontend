@@ -5,14 +5,28 @@ import { Trees, User, Compass, LogOut, LayoutDashboard } from 'lucide-react';
 export default function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [userName, setUserName] = useState('User');
   const navigate = useNavigate();
 
   // Check login status on mount / when storage changes
-// Check login status on mount AND listen for storage changes across the app
+  // Check login status on mount AND listen for storage changes across the app
   useEffect(() => {
     const checkAuth = () => {
       const token = localStorage.getItem('jwt_token');
+      const storedUser = localStorage.getItem('user');
+
       setIsLoggedIn(!!token);
+
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          setUserName(parsedUser.fullName || parsedUser.name || parsedUser.email || 'User');
+        } catch {
+          setUserName('User');
+        }
+      } else {
+        setUserName('User');
+      }
     };
 
     // Check on initial load
@@ -20,13 +34,14 @@ export default function Navbar() {
 
     // Listen for storage updates triggered from login/logout
     window.addEventListener('storage', checkAuth);
-    
+
     return () => {
       window.removeEventListener('storage', checkAuth);
     };
   }, []);
   const handleLogout = () => {
     localStorage.removeItem('jwt_token');
+    localStorage.removeItem('user');
     window.dispatchEvent(new Event('storage'));
     setIsLoggedIn(false);
     setDropdownOpen(false);
@@ -45,8 +60,11 @@ export default function Navbar() {
         {/* Nav Links */}
         <div className="flex items-center gap-6 relative">
           <Link to="/" className="hover:text-green-600 font-medium transition">Home</Link>
-          <Link to="/farms" className="flex items-center gap-1 hover:text-green-600 font-medium transition">
+          <Link to="/explore-farms" className="flex items-center gap-1 hover:text-green-600 font-medium transition">
             <Compass className="w-4 h-4" /> Explore Farms
+          </Link>
+          <Link to="/plant-adoption" className="hover:text-green-600 font-medium transition">
+            Plant Adoption
           </Link>
 
           {/* Conditional Rendering: Login Button OR Profile Sidebar Toggle */}
@@ -70,14 +88,28 @@ export default function Navbar() {
                 <div className="absolute right-0 mt-2 w-48 bg-white border border-stone-200 rounded-xl shadow-lg py-2 z-50">
                   <div className="px-4 py-2 border-b border-stone-100">
                     <p className="text-xs text-stone-500">Signed in as</p>
-                    <p className="text-sm font-semibold text-stone-800 truncate">Farmer / Adopter</p>
+                    <p className="text-sm font-semibold text-stone-800 truncate">{userName}</p>
                   </div>
                   <Link
                     to="/dashboard"
                     onClick={() => setDropdownOpen(false)}
                     className="flex items-center gap-2 px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 transition"
                   >
-                    <LayoutDashboard className="w-4 h-4 text-stone-500" /> My Dashboard
+                    <LayoutDashboard className="w-4 h-4 text-stone-500" /> Farmer Dashboard
+                  </Link>
+                  <Link
+                    to="/virtual-farm"
+                    onClick={() => setDropdownOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 transition"
+                  >
+                    <Trees className="w-4 h-4 text-stone-500" /> My Virtual Farm
+                  </Link>
+                  <Link
+                    to="/my-bookings"
+                    onClick={() => setDropdownOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 transition"
+                  >
+                    <LayoutDashboard className="w-4 h-4 text-stone-500" /> My Bookings
                   </Link>
                   <button
                     onClick={handleLogout}

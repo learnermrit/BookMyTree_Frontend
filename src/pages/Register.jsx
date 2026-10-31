@@ -36,8 +36,13 @@ export default function Register() {
             const response = await api.post('/auth/register', payload);
 
             const token = response?.data?.token || response?.data?.accessToken;
+            const user = response?.data?.user || null;
+
             if (typeof token === 'string' && token.length > 20) {
                 localStorage.setItem('jwt_token', token);
+                if (user) {
+                    localStorage.setItem('user', JSON.stringify(user));
+                }
                 window.dispatchEvent(new Event('storage'));
             }
 
