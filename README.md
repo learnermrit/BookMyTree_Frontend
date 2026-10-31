@@ -1,16 +1,27 @@
-# React + Vite
+# 🌱 BookMyTree Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The official React frontend repository for **BookMyTree** — a full-stack platform designed to connect consumers directly with fruit farmers for tree adoptions, harvest bookings, and seasonal farm visits.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🚀 Tech Stack
 
-## React Compiler
+* **Framework:** React 19 (via Vite)
+* **Styling:** Tailwind CSS (v4)
+* **Routing:** React Router DOM
+* **HTTP Client:** Axios (configured with interceptors for Spring Boot backend integration)
+* **Icons:** Lucide React
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the Oxlint configuration
+## 🛠️ Getting Started Locally
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+### Prerequisites
+Make sure you have [Node.js](https://nodejs.org/) installed on your machine.
+
+### Installation & Setup
+
+1. **Clone the repository:**
+   ```bash
+   git clone [https://github.com/YOUR_USERNAME/BookMyTree_Frontend.git](https://github.com/YOUR_USERNAME/BookMyTree_Frontend.git)
+   cd BookMyTree_Frontend
