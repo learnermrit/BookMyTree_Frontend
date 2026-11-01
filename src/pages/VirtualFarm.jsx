@@ -37,6 +37,7 @@ const getCurrentUserId = () => {
 };
 
 const getInventoryStorageKey = (userId) => `bookmytree_adoption_inventory_${userId}`;
+const getPlacedInventoryStorageKey = (userId) => `bookmytree_placed_adoption_inventory_${userId}`;
 
 const getStoredAdoptionInventory = (userId) => {
     if (!userId) return [];
@@ -54,12 +55,59 @@ const saveStoredAdoptionInventory = (userId, inventory) => {
     localStorage.setItem(getInventoryStorageKey(userId), JSON.stringify(inventory));
 };
 
+const getPlacedInventoryIds = (userId) => {
+    if (!userId) return [];
+
+    try {
+        const stored = localStorage.getItem(getPlacedInventoryStorageKey(userId));
+        return stored ? JSON.parse(stored) : [];
+    } catch {
+        return [];
+    }
+};
+
+const savePlacedInventoryIds = (userId, ids) => {
+    if (!userId) return;
+    localStorage.setItem(getPlacedInventoryStorageKey(userId), JSON.stringify(ids));
+};
+
+const normalizeInventoryEntry = (entry) => ({
+    ...entry,
+    id: entry?.id,
+    cropSpecies: entry?.cropSpecies || entry?.name || 'Plant',
+    quantity: Number(entry?.quantity ?? 0),
+});
+
+const syncUnplacedInventoryState = (userId, setAdoptionInventory) => {
+    if (!userId) {
+        setAdoptionInventory([]);
+        return;
+    }
+
+    const placedIds = getPlacedInventoryIds(userId);
+    const storedInventory = getStoredAdoptionInventory(userId)
+        .map(normalizeInventoryEntry)
+        .filter((item) => !placedIds.includes(item.id) || (Number(item.quantity) || 0) === 0);
+    setAdoptionInventory(storedInventory);
+};
+
 const mapTypeToCropSpecies = (type, label) => {
     if (type === 'tree') return label || 'Mango';
     if (type === 'pond') return 'Pond';
     if (type === 'greenhouse') return 'Greenhouse';
     if (type === 'path') return 'Path';
     return label || 'Tree';
+};
+
+const resolveSourceInventoryId = (item) => {
+    if (item?.sourceInventoryId) return String(item.sourceInventoryId);
+
+    const plotId = item?.metaversePlotId || item?.plotId || item?.sourceId || '';
+    if (!plotId) return null;
+
+    if (plotId.startsWith('adoption-plant-')) return plotId.replace('adoption-plant-', '');
+    if (plotId.startsWith('adoption-')) return plotId.replace('adoption-', '');
+    return null;
 };
 
 const mapBackendItemToUi = (item, index) => {
@@ -74,6 +122,7 @@ const mapBackendItemToUi = (item, index) => {
     const meta = assetLibrary.find((asset) => asset.id === type) || assetLibrary[0];
     const x = Number(item.xPercent ?? ((Number(item.longitude ?? 72.8777) - 72.8777) / 0.025) * 100);
     const y = Number(item.yPercent ?? ((Number(item.latitude ?? 19.076) - 19.076) / 0.02) * 100);
+    const sourceInventoryId = resolveSourceInventoryId(item);
 
     return {
         id: item.id || `load-${type}-${index}`,
@@ -81,6 +130,9 @@ const mapBackendItemToUi = (item, index) => {
         x: Math.min(96, Math.max(4, x)),
         y: Math.min(92, Math.max(9, y)),
         label: item.cropSpecies || meta.label,
+        metaversePlotId: item.metaversePlotId || undefined,
+        sourceInventoryId,
+        sourceInventoryEntry: item,
     };
 };
 
@@ -123,12 +175,12 @@ export default function VirtualFarm() {
                     setItems(initialLayout);
                 }
 
-                setAdoptionInventory(getStoredAdoptionInventory(userId));
+                syncUnplacedInventoryState(userId, setAdoptionInventory);
                 setGreenPoints(pointsResponse.data?.pointsBalance ?? 150);
                 setStatus('Your farm is synced to your account.');
             } catch (err) {
                 console.error('Unable to load virtual farm:', err);
-                setAdoptionInventory(getStoredAdoptionInventory(userId));
+                syncUnplacedInventoryState(userId, setAdoptionInventory);
                 setStatus('Using a local starter layout until your saved farm loads.');
             } finally {
                 setLoading(false);
@@ -156,8 +208,107 @@ export default function VirtualFarm() {
         setItems((current) => [...current, buildItem(selectedAsset, current.length)]);
     };
 
-    const handleDeleteItem = (id) => {
-        setItems((current) => current.filter((item) => item.id !== id));
+    const buildVirtualFarmPayload = (layout, userId) =>
+        (layout || []).map((item, index) => ({
+            userId,
+            cropSpecies: mapTypeToCropSpecies(item.type, item.label),
+            latitude: Number((19.076 + (item.y / 100) * 0.02).toFixed(6)),
+            longitude: Number((72.8777 + (item.x / 100) * 0.025).toFixed(6)),
+            xPercent: Number(item.x.toFixed(2)),
+            yPercent: Number(item.y.toFixed(2)),
+            metaversePlotId: item.sourceInventoryId
+                ? `adoption-${item.sourceInventoryId}`
+                : item.metaversePlotId || `plot-${userId}-${index + 1}`,
+        }));
+
+    const persistFarmLayout = async (layout) => {
+        const userId = getCurrentUserId();
+        if (!userId) return;
+
+        try {
+            await api.put(`/metaverse/virtual-farm/${userId}`, buildVirtualFarmPayload(layout, userId));
+        } catch (err) {
+            console.error('Unable to persist farm layout:', err);
+        }
+    };
+
+    const handleDeleteItem = async (id) => {
+        const userId = getCurrentUserId();
+        const itemToDelete = items.find((item) => item.id === id);
+        const nextItems = items.filter((item) => item.id !== id);
+
+        setItems(nextItems);
+
+        const sourceInventoryId = itemToDelete?.sourceInventoryId || resolveSourceInventoryId(itemToDelete);
+        if (sourceInventoryId) {
+            const inventory = getStoredAdoptionInventory(userId)
+                .map(normalizeInventoryEntry);
+            const matchingItem = inventory.find((entry) => entry.id === sourceInventoryId);
+            const restoredEntry = matchingItem
+                ? { ...matchingItem, quantity: (Number(matchingItem.quantity) || 0) + 1 }
+                : itemToDelete.sourceInventoryEntry || { id: sourceInventoryId, cropSpecies: itemToDelete.label, quantity: 1 };
+
+            const nextInventory = [...inventory.filter((entry) => entry.id !== sourceInventoryId), normalizeInventoryEntry(restoredEntry)];
+            saveStoredAdoptionInventory(userId, nextInventory);
+
+            const placedIds = getPlacedInventoryIds(userId).filter((placedId) => placedId !== sourceInventoryId);
+            savePlacedInventoryIds(userId, placedIds);
+            syncUnplacedInventoryState(userId, setAdoptionInventory);
+        }
+
+        await persistFarmLayout(nextItems);
+    };
+
+    const handleAddAdoptionToLayout = async (item) => {
+        const currentQty = Number(item?.quantity ?? 0);
+        if (!item || currentQty <= 0) return;
+
+        const userId = getCurrentUserId();
+        if (!userId) {
+            setError('Please log in before placing plants in your virtual farm.');
+            return;
+        }
+
+        const nextQty = currentQty - 1;
+        const updatedInventory = getStoredAdoptionInventory(userId)
+            .map((entry) => (
+                entry.id === item.id ? { ...normalizeInventoryEntry(entry), quantity: nextQty } : normalizeInventoryEntry(entry)
+            ));
+
+        saveStoredAdoptionInventory(userId, updatedInventory);
+        setAdoptionInventory(updatedInventory.filter((entry) => !getPlacedInventoryIds(userId).includes(entry.id) || (Number(entry.quantity) || 0) === 0));
+
+        if (nextQty <= 0) {
+            setStatus(`${item.cropSpecies} quantity is now 0 and remains in unplaced adoption inventory.`);
+            await persistFarmLayout(items);
+            return;
+        }
+
+        const newItem = {
+            id: `adoption-${item.id}-${Date.now()}`,
+            type: 'tree',
+            x: 18 + ((Math.random() * 50) % 50),
+            y: 18 + ((Math.random() * 50) % 50),
+            label: item.cropSpecies || 'Plant',
+            sourceInventoryId: item.id,
+            sourceInventoryEntry: item,
+        };
+
+        const nextItems = [...items, newItem];
+        setItems(nextItems);
+
+        const placedIds = new Set(getPlacedInventoryIds(userId));
+        placedIds.add(item.id);
+        savePlacedInventoryIds(userId, [...placedIds]);
+
+        await persistFarmLayout(nextItems);
+        setStatus(`${item.cropSpecies} added to the orchard layout.`);
+    };
+
+    const removePlacedInventoryRecord = (userId, itemId) => {
+        if (!itemId) return;
+        const placedIds = getPlacedInventoryIds(userId).filter((id) => id !== itemId);
+        savePlacedInventoryIds(userId, placedIds);
     };
 
     const placeInventoryItem = async (inventoryItem, clientX, clientY) => {
@@ -192,10 +343,21 @@ export default function VirtualFarm() {
             const response = await api.post('/metaverse/virtual-farm/plant', payload);
             const placedItem = mapBackendItemToUi(response.data);
 
-            setItems((current) => [...current, { ...placedItem, id: placedItem.id || `adoption-${Date.now()}` }]);
+            setItems((current) => [
+                ...current,
+                {
+                    ...placedItem,
+                    id: placedItem.id || `adoption-${Date.now()}`,
+                    sourceInventoryId: inventoryItem.id,
+                    sourceInventoryEntry: inventoryItem,
+                },
+            ]);
             setAdoptionInventory((current) => {
                 const next = current.filter((item) => item.id !== inventoryItem.id);
                 saveStoredAdoptionInventory(userId, next);
+                const placedIds = new Set(getPlacedInventoryIds(userId));
+                placedIds.add(inventoryItem.id);
+                savePlacedInventoryIds(userId, [...placedIds]);
                 return next;
             });
 
@@ -252,17 +414,7 @@ export default function VirtualFarm() {
         setError('');
 
         try {
-            const payload = items.map((item, index) => ({
-                userId,
-                cropSpecies: mapTypeToCropSpecies(item.type, item.label),
-                latitude: Number((19.076 + (item.y / 100) * 0.02).toFixed(6)),
-                longitude: Number((72.8777 + (item.x / 100) * 0.025).toFixed(6)),
-                xPercent: Number(item.x.toFixed(2)),
-                yPercent: Number(item.y.toFixed(2)),
-                metaversePlotId: `plot-${userId}-${index + 1}`,
-            }));
-
-            const response = await api.put(`/metaverse/virtual-farm/${userId}`, payload);
+            const response = await api.put(`/metaverse/virtual-farm/${userId}`, buildVirtualFarmPayload(items, userId));
             const savedLayout = response.data?.map(mapBackendItemToUi) || items;
             setItems(savedLayout);
 
@@ -367,35 +519,39 @@ export default function VirtualFarm() {
                         Add to layout
                     </button>
 
-                    {adoptionInventory.length > 0 && (
-                        <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
-                            <div className="mb-3 flex items-center justify-between">
-                                <p className="text-sm font-bold text-emerald-800">Unplaced adoption inventory</p>
-                                <span className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-emerald-700">{adoptionInventory.length}</span>
-                            </div>
+                    <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
+                        <div className="mb-3 flex items-center justify-between">
+                            <p className="text-sm font-bold text-emerald-800">Unplaced adoption inventory</p>
+                            <span className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-emerald-700">{adoptionInventory.length}</span>
+                        </div>
 
+                        {adoptionInventory.length === 0 ? (
+                            <p className="rounded-xl border border-dashed border-emerald-200 bg-white/70 px-3 py-3 text-xs text-stone-500">No unplaced adoption inventory. Add assets to the orchard layout from the asset library.</p>
+                        ) : (
                             <div className="space-y-2">
                                 {adoptionInventory.map((item) => (
                                     <div
                                         key={item.id}
-                                        draggable
-                                        onDragStart={(event) => {
-                                            event.dataTransfer.setData('application/json', JSON.stringify(item));
-                                            setDraggingInventoryId(item.id);
-                                        }}
-                                        onDragEnd={() => setDraggingInventoryId(null)}
-                                        className={`cursor-grab rounded-xl border border-emerald-200 bg-white p-2 text-left shadow-sm ${draggingInventoryId === item.id ? 'opacity-70' : ''}`}
+                                        className="rounded-xl border border-emerald-200 bg-white p-2 text-left shadow-sm"
                                     >
                                         <div className="flex items-center justify-between gap-2">
-                                            <span className="font-semibold text-stone-900">{item.cropSpecies}</span>
-                                            <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">{item.quantity} units</span>
+                                            <div>
+                                                <span className="font-semibold text-stone-900">{item.cropSpecies}</span>
+                                                <div className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">{Number(item.quantity || 0)} units</div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleAddAdoptionToLayout(item)}
+                                                className="inline-flex items-center justify-center rounded-lg bg-emerald-700 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-emerald-800"
+                                            >
+                                                + Add to Layout
+                                            </button>
                                         </div>
-                                        <p className="mt-1 text-xs text-stone-500">Drag into the farm to plant it</p>
                                     </div>
                                 ))}
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
 
                     <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
                         <p className="font-bold uppercase tracking-[0.2em]">Tip</p>

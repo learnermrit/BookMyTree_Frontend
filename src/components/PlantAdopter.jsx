@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom';
 
 const PlantAdopter = () => {
   return (
-    <div className="w-full flex items-start shadow-lg rounded-lg overflow-hidden bg-white">
+    <Link to="/plant-adoption" className="group block w-full overflow-hidden rounded-lg bg-white shadow-lg transition hover:shadow-xl">
+      <div className="flex items-start">
       <div className="my-8 px-4 w-1/2">
         <h2 className="text-2xl font-bold mb-4">Plant Adopter</h2>
 
@@ -22,23 +23,21 @@ const PlantAdopter = () => {
           Join <span className="text-green-500 font-bold">Adopt of Plants and Crops</span> to make a <span className="text-green-500 font-bold">positive difference</span> in our environment and experience the joy of <span className="text-green-500 font-bold">contributing</span> to the <span className="text-green-500 font-bold">growth</span> of our beautiful planet.
         </p>
 
-        <Link
-          to="/plant-adoption"
-          className="mt-6 inline-flex rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
-        >
+        <span className="mt-6 inline-flex rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition group-hover:bg-emerald-700">
           Adopt plants now
-        </Link>
+        </span>
       </div>
       <div className="w-1/2 p-2 flex">
-        <div className="rounded-lg overflow-hidden">
+        <div className="overflow-hidden rounded-lg">
           <img
             src="https://plus.unsplash.com/premium_photo-1663091116913-9e49bdb5c69b?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
             alt="Plant adoption"
-            className="w-full h-full object-cover"
+            className="h-full w-full object-cover"
           />
         </div>
       </div>
-    </div>
+      </div>
+    </Link>
   );
 };
 

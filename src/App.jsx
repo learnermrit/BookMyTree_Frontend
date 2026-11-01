@@ -7,6 +7,7 @@ import Register from './pages/Register';
 import ExploreFarms from './pages/ExploreFarms';
 import TreeBookingPage from './pages/TreeBookingPage';
 import FarmerDashboard from './pages/FarmerDashboard';
+import AdoptionFarmsDashboard from './pages/AdoptionFarmsDashboard';
 import VirtualFarm from './pages/VirtualFarm';
 import PlantAdoptionPage from './pages/PlantAdoptionPage';
 import MyBookings from './pages/MyBookings';
@@ -30,6 +31,7 @@ function App() {
             <Route path="/explore-farms" element={<ExploreFarms />} />
             <Route path="/tree-booking" element={<TreeBookingPage />} />
             <Route path="/dashboard" element={<FarmerDashboard />} />
+            <Route path="/farmer/adoption-farms" element={<AdoptionFarmsDashboard />} />
             <Route path="/virtual-farm" element={<VirtualFarm />} />
             <Route path="/plant-adoption" element={<PlantAdoptionPage />} />
             <Route path="/my-bookings" element={<MyBookings />} />

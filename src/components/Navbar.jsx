@@ -6,6 +6,7 @@ export default function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [userName, setUserName] = useState('User');
+  const [userRole, setUserRole] = useState(null);
   const navigate = useNavigate();
 
   // Check login status on mount / when storage changes
@@ -21,11 +22,14 @@ export default function Navbar() {
         try {
           const parsedUser = JSON.parse(storedUser);
           setUserName(parsedUser.fullName || parsedUser.name || parsedUser.email || 'User');
+          setUserRole(parsedUser.role || null);
         } catch {
           setUserName('User');
+          setUserRole(null);
         }
       } else {
         setUserName('User');
+        setUserRole(null);
       }
     };
 
@@ -47,6 +51,8 @@ export default function Navbar() {
     setDropdownOpen(false);
     navigate('/');
   };
+
+  const canViewFarmerLinks = userRole === 'FARMER' || userRole === 'ADMIN';
 
   return (
     <nav className="bg-white shadow-sm border-b border-stone-200 sticky top-0 z-50">
@@ -97,6 +103,15 @@ export default function Navbar() {
                   >
                     <LayoutDashboard className="w-4 h-4 text-stone-500" /> Farmer Dashboard
                   </Link>
+                  {canViewFarmerLinks && (
+                    <Link
+                      to="/farmer/adoption-farms"
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 transition"
+                    >
+                      <Trees className="w-4 h-4 text-stone-500" /> Adoption Farms Dashboard
+                    </Link>
+                  )}
                   <Link
                     to="/virtual-farm"
                     onClick={() => setDropdownOpen(false)}
